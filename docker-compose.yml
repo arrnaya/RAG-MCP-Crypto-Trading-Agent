@@ -23,6 +23,8 @@ services:
     image: semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
     environment:
       - ENABLE_CUDA=0
+    ports:
+      - "8002:8000"  # Exposing transformer inference port for debugging if needed
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000"]
       interval: 30s
@@ -34,8 +36,8 @@ services:
       context: .
       dockerfile: Dockerfile.rest
     ports:
-      - "8000:8000"
-      - "8001:8001"
+      - "8000:8000"   # REST API main port
+      - "8101:8001"   # Changed from 8001 to 8101
     environment:
       - REST_API_KEY=${REST_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
@@ -58,7 +60,7 @@ services:
       dockerfile: Dockerfile.ws
     ports:
       - "8765:8765"
-      - "8001:8001"
+      - "8102:8001"  # Changed from 8001 to 8102
     environment:
       - WS_API_KEY=${WS_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
@@ -78,7 +80,7 @@ services:
       dockerfile: Dockerfile.ui
     ports:
       - "8501:8501"
-      - "8001:8001"
+      - "8103:8001"  # Changed from 8001 to 8103
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - SENTRY_DSN=${SENTRY_DSN}
