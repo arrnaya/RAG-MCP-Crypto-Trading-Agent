@@ -1,0 +1,158 @@
+version: '3.9'
+services:
+  weaviate:
+    image: semitechnologies/weaviate:1.30.0
+    ports:
+      - "8080:8080"
+    environment:
+      - QUERY_DEFAULTS_LIMIT=100
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=text2vec-transformers
+      - ENABLE_MODULES=text2vec-transformers
+      - TRANSFORMERS_INFERENCE_API=http://transformers:8000
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  transformers:
+    image: semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
+    environment:
+      - ENABLE_CUDA=0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  rest-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.rest
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    environment:
+      - REST_API_KEY=${REST_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - CMC_API_KEY=${CMC_API_KEY}
+      - TIE_API_KEY=${TIE_API_KEY}
+      - SLACK_ALERT_WEBHOOK=${SLACK_ALERT_WEBHOOK}
+      - SENTRY_DSN=${SENTRY_DSN}
+    depends_on:
+      - weaviate
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile.ws
+    ports:
+      - "8765:8765"
+      - "8001:8001"
+    environment:
+      - WS_API_KEY=${WS_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - SENTRY_DSN=${SENTRY_DSN}
+    depends_on:
+      - weaviate
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    ports:
+      - "8501:8501"
+      - "8001:8001"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - SENTRY_DSN=${SENTRY_DSN}
+    depends_on:
+      - weaviate
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.rest
+    command: ["celery", "-A", "tasks", "worker", "--loglevel=info", "--concurrency=4"]
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CMC_API_KEY=${CMC_API_KEY}
+      - TIE_API_KEY=${TIE_API_KEY}
+      - SLACK_ALERT_WEBHOOK=${SLACK_ALERT_WEBHOOK}
+      - SENTRY_DSN=${SENTRY_DSN}
+    depends_on:
+      - redis
+      - weaviate
+    healthcheck:
+      test: ["CMD", "celery", "-A", "tasks", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:9.5.3
+    volumes:
+      - ./monitoring/grafana:/etc/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  weaviate_data:
+  redis_data:

@@ -1,0 +1,6 @@
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: 'trading-agent'
+    static_configs:
+      - targets: ['rest-api:8001', 'websocket:8001', 'ui:8001']

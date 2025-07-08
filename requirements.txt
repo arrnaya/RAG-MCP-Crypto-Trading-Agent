@@ -1,0 +1,14 @@
+haystack-ai==2.15.1
+weaviate-client==3.22.1
+python-dotenv==1.0.0
+loguru==0.7.0
+requests==2.31.0
+fastapi==0.103.0
+uvicorn==0.23.2
+pydantic==2.3.0
+streamlit==1.46.1
+websockets==11.0.3
+celery[redis]==5.3.1
+sentry-sdk==1.29.2
+prometheus-client==0.17.1
+tenacity==8.2.3
