@@ -3,4 +3,4 @@ global:
 scrape_configs:
   - job_name: 'trading-agent'
     static_configs:
-      - targets: ['rest-api:8001', 'websocket:8001', 'ui:8001']
+      - targets: ['rest-api:8001', 'websocket:8002', 'ui:8003']
